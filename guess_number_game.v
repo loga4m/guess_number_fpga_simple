@@ -1,5 +1,5 @@
 module guess_number_game(
-    input clk,              // 50MHz
+    input clk,              // 50MHz (Altera Cyclone 4)
     input reset_n,          // Active low reset
     input btn_start,        // Start game
     input btn_inc,          // Increment guess
@@ -8,7 +8,7 @@ module guess_number_game(
     output reg [7:0] segments
 );
 
-    wire reset = ~reset_n;
+    wire reset = ~reset_n; // We use opposite logic reset
     
     // ========== Button Debouncing ==========
     reg [19:0] start_cnt, inc_cnt, submit_cnt;
@@ -17,7 +17,7 @@ module guess_number_game(
     reg submit_sync1, submit_sync2, submit_db;
     reg start_prev, inc_prev, submit_prev;
     
-    localparam DEBOUNCE = 20'd1_000_000; // 20ms
+    localparam DEBOUNCE = 20'd1_000_000; // 20ms (general debouncing time)
     
     always @(posedge clk or posedge reset) begin
         if (reset) begin
@@ -32,7 +32,7 @@ module guess_number_game(
             submit_sync1 <= btn_submit; submit_sync2 <= submit_sync1;
             
             // Debounce start
-            if (start_sync2 == start_db) 
+            if (start_sync2 == start_db) // enable debouncing if start is pressed 
                 start_cnt <= 0;
             else if (start_cnt < DEBOUNCE)
                 start_cnt <= start_cnt + 1;
@@ -84,7 +84,11 @@ module guess_number_game(
     
     // ========== LFSR for Random Number ==========
     reg [3:0] lfsr;
-    
+    /*
+        LFSR -- linear-feedback shift register is a
+        method to generate binary pseudo-random
+        numbers using previous state and XOR.
+    */
     always @(posedge clk or posedge reset) begin
         if (reset)
             lfsr <= 4'b1011;
@@ -98,6 +102,11 @@ module guess_number_game(
     localparam SHOW_RESULT = 3'd2;
     localparam WIN_ANIM = 3'd3;
     localparam WIN_STATS = 3'd4;
+
+    localparam ENTERING = 2'd0;
+    localparam LOW = 2'd1;
+    localparam HIGH = 2'd2;
+    localparam WIN = 2'd3;
     
     reg [2:0] state;
     reg [3:0] target;
@@ -116,12 +125,12 @@ module guess_number_game(
             target <= 4'd1;
             current_guess <= 4'd1;
             attempts <= 4'd0;
-            result <= 2'd0;
+            result <= ENTERING;
             delay_cnt <= 28'd0;
         end else begin
             case (state)
                 IDLE: begin
-                    result <= 2'd0;
+                    result <= ENTERING;
                     current_guess <= 4'd1;
                     attempts <= 4'd0;
                     
@@ -132,7 +141,7 @@ module guess_number_game(
                 end
                 
                 PLAYING: begin
-                    result <= 2'd0; // Show we're entering input
+                    result <= ENTERING; // Show we're entering input
                     
                     if (inc_edge) begin
                         if (current_guess < 4'd10)
@@ -145,11 +154,11 @@ module guess_number_game(
                         attempts <= attempts + 1;
                         
                         if (current_guess < target)
-                            result <= 2'd1; // Low
+                            result <= LOW; // Low
                         else if (current_guess > target)
-                            result <= 2'd2; // High
+                            result <= HIGH; // High
                         else
-                            result <= 2'd3; // Win
+                            result <= WIN; // Win
                         
                         state <= SHOW_RESULT;
                         delay_cnt <= 28'd0;
@@ -162,7 +171,7 @@ module guess_number_game(
                     else begin
                         delay_cnt <= 28'd0;
                         
-                        if (result == 2'd3)
+                        if (result == WIN)
                             state <= WIN_ANIM;
                         else begin
                             current_guess <= 4'd1;
@@ -318,15 +327,15 @@ module guess_number_game(
                             segments <= seg7(target);
                         else if (state == IDLE)
                             segments <= 8'b11111111;
-                        else if (result == 2'd0) begin
+                        else if (result == ENTERING) begin
                             if (current_guess == 4'd10)
                                 segments <= 8'b11000000;
                             else
                                 segments <= seg7(current_guess);
                         end
-                        else if (result == 2'd1)
+                        else if (result == LOW)
                             segments <= 8'b11000111; // L
-                        else if (result == 2'd2)
+                        else if (result == HIGH)
                             segments <= 8'b10001001; // H
                         else
                             segments <= seg7(target);
@@ -341,11 +350,11 @@ module guess_number_game(
                             else
                                 segments <= 8'b11111111;
                         end
-                        else if (result == 2'd1)
+                        else if (result == LOW)
                             segments <= 8'b11000000; // o
-                        else if (result == 2'd2)
+                        else if (result == HIGH)
                             segments <= 8'b11111001; // i
-                        else if (result == 2'd0 && current_guess == 4'd10)
+                        else if (result == ENTERING && current_guess == 4'd10)
                             segments <= 8'b11111001;
                         else
                             segments <= 8'b11111111;

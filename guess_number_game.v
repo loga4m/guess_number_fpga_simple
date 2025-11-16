@@ -12,7 +12,7 @@ module guess_number_game(
     
     // ========== Button Debouncing ==========
     reg [19:0] start_cnt, inc_cnt, submit_cnt;
-    reg start_sync1, start_sync2, start_db;
+    reg start_sync1, start_sync2, start_db; // button state
     reg inc_sync1, inc_sync2, inc_db;
     reg submit_sync1, submit_sync2, submit_db;
     reg start_prev, inc_prev, submit_prev;
@@ -281,6 +281,7 @@ module guess_number_game(
     reg [2:0] anim_frame;
 	 
     localparam ANIM_SPEED = 26'd12_500_000; // 250ms per frame
+    localparam REFRESH_DELAY = 16'd50_000;
 	 
     always @(posedge clk or posedge reset) begin
         if (reset) begin
@@ -304,7 +305,7 @@ module guess_number_game(
                 anim_frame <= 3'd0;
             end
             
-            if (refresh_cnt < 16'd49999)
+            if (refresh_cnt < REFRESH_DELAY - 1)
                 refresh_cnt <= refresh_cnt + 1;
             else begin
                 refresh_cnt <= 16'd0;
@@ -365,12 +366,12 @@ module guess_number_game(
                             segments <= bar_pattern(anim_frame, 2'd2);
                         else if (state == WIN_STATS) begin
                             if (attempts >= 10)
-                                segments <= seg7(attempts / 10);
+                                segments <= seg7(attempts % 10);
                             else
                                 segments <= 8'b11111111;
                         end
                         else if (attempts >= 10)
-                            segments <= seg7(attempts / 10);
+                            segments <= seg7(attempts % 10);
                         else
                             segments <= 8'b11111111;
                     end
@@ -379,9 +380,15 @@ module guess_number_game(
                         if (state == WIN_ANIM)
                             segments <= bar_pattern(anim_frame, 2'd3);
                         else if (state == WIN_STATS)
-                            segments <= seg7(attempts % 10);
+                            if (attempts >= 10)
+                                segments <= seg7(attempts / 10);
+                            else
+                                segments <= seg7(attempts);
                         else
-                            segments <= seg7(attempts % 10);
+                            if (attempts >= 10)
+                                segments <= seg7(attempts / 10);
+                            else
+                                segments <= seg7(attempts);
                     end
                 endcase
             end

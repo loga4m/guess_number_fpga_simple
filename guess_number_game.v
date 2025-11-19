@@ -111,7 +111,7 @@ module guess_number_game(
     reg [2:0] state;
     reg [3:0] target;
     reg [3:0] current_guess;
-    reg [3:0] attempts;
+    reg [6:0] attempts;
     reg [1:0] result; // 0=entering, 1=low, 2=high, 3=win
     reg [28:0] delay_cnt;
     
